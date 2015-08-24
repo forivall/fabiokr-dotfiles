@@ -1,25 +1,41 @@
 #!/bin/bash
 
 # Requirements:
-#   apt-get install imagemagick mplayer gtk-recordmydesktop
+#   apt-get install imagemagick mplayer gtk-recordmydesktop gifsicle
+
+set -e
+
+rm -rf /tmp/ogv_to_gif
+mkdir -p /tmp/ogv_to_gif/png
 
 # Export into images
-mplayer -ao null $1 -vo jpeg:outdir=/tmp/ogv_to_gif
+mplayer -ao null $1 -vo png:outdir=/tmp/ogv_to_gif/png
 
 # Convert images to animated gif
 echo "Converting images folder to gif..."
-convert -loop 1 /tmp/ogv_to_gif/* /tmp/ogv_to_gif.gif
 
+# convert -limit memory 64 -limit map 128 /tmp/ogv_to_gif/png/* /tmp/ogv_to_gif.gif
+mkdir /tmp/ogv_to_gif/gif
+last=$(ls /tmp/ogv_to_gif/png/|tail -n1)
+last=${last%.png}
+for png in /tmp/ogv_to_gif/png/*.png ; do
+    n=${png%.png}; n=${n##*/}
+    echo -en "\r$(( ( 10#$n * 100 ) / 10#$last ))%"
+
+    convert $png ${png//png/gif}
+done
+echo
 # Final filename
 original_filename=$1
-echo $original_filename
 filename=${original_filename//ogv/gif}
+echo $filename
 
 # Optimize gif
-echo "Optimizing generated gif..."
-convert /tmp/ogv_to_gif.gif -fuzz 10% -layers Optimize "$filename"
+echo "Creating and optimizing animated gif..."
+# convert /tmp/ogv_to_gif.gif -fuzz 10% -layers Optimize "$filename"
+gifsicle -O3 --delay=10 --loop --colors 256 /tmp/ogv_to_gif/gif/*.gif > $filename
 
 # Cleans up tmp folders
-rm -rf /tmp/ogv_to_gif.gif /tmp/ogv_to_gif
+rm -rf /tmp/ogv_to_gif
 
 echo "Done! $filename"
